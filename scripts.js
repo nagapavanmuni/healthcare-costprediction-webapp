@@ -43,7 +43,16 @@ function updateLastUpdated() {
     setInterval(() => {
         lastUpdatedElement.textContent = formatTimeAgo(now);
     }, 60000);
+}function updateLastUpdated() {
+    const lastUpdatedElement = document.getElementById('lastUpdated');
+    const initialUpdate = new Date();
+    function updateTime() {
+        lastUpdatedElement.textContent = formatTimeAgo(initialUpdate);
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
 }
+
 
 function formatTimeAgo(date) {
     const now = new Date();
