@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Cost Prediction Dashboard</title>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <!-- FileSaver.js for downloading files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- JSZip for Excel exports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- jsPDF for PDF exports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-question-circle"></i> Dashboard Help Guide</h2>
+            <div class="help-content">
+                <div class="help-section">
+                    <h3>Getting Started</h3>
+                    <p>This dashboard provides insights into healthcare costs and insurance claims. Use the navigation menu on the left to explore different sections.</p>
+                </div>
+                <div class="help-section">
+                    <h3>Main Features</h3>
+                    <ul>
+                        <li><strong>Overview:</strong> See key metrics and high-level charts of healthcare expenses</li>
+                        <li><strong>Claims Analysis:</strong> Analyze claim data by procedure and medical condition</li>
+                        <li><strong>Cost Drivers:</strong> Identify factors driving healthcare costs</li>
+                        <li><strong>Payer Analysis:</strong> Compare insurance payers' coverage and performance</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <h3>Using Filters</h3>
+                    <p>Use filters on the right panel to narrow down data by:</p>
+                    <ul>
+                        <li>Demographics (age, gender, race)</li>
+                        <li>Health conditions</li>
+                        <li>Location</li>
+                        <li>Time period</li>
+                    </ul>
+                    <p>After selecting filters, click "Apply Filters" to update the dashboard.</p>
+                </div>
+                <div class="help-section">
+                    <h3>Interacting with Charts</h3>
+                    <p>Hover over chart elements to see detailed values. Click on legend items to hide/show data series.</p>
+                </div>
+                <div class="help-section">
+                    <h3>Exporting Data</h3>
+                    <p>Click the "Export Data" button to download the current view's data as CSV, Excel, or PDF format.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-file-export"></i> Export Data</h2>
+            <div class="export-options">
+                <div class="export-option" data-format="csv">
+                    <i class="fas fa-file-csv"></i>
+                    <span>CSV Format</span>
+                </div>
+                <div class="export-option" data-format="excel">
+                    <i class="fas fa-file-excel"></i>
+                    <span>Excel Format</span>
+                </div>
+                <div class="export-option" data-format="pdf">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>PDF Report</span>
+                </div>
+                <div class="export-option" data-format="image">
+                    <i class="fas fa-file-image"></i>
+                    <span>Dashboard Image</span>
+                </div>
+            </div>
+            <div class="export-settings">
+                <h3>Export Settings</h3>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="includeCharts" checked> Include charts
+                    </label>
+                    <label>
+                        <input type="checkbox" id="includeTables" checked> Include tables
+                    </label>
+                    <label>
+                        <input type="checkbox" id="includeFilters" checked> Include filters
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>Date Range:</label>
+                    <select id="exportDateRange">
+                        <option value="current">Current view</option>
+                        <option value="last30">Last 30 days</option>
+                        <option value="last90">Last 90 days</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                </div>
+            </div>
+            <button id="confirmExport" class="btn primary-btn">Export</button>
+        </div>
+    </div>
+
+    <!-- Chart Expand Modal -->
+    <div id="chartExpandModal" class="modal">
+        <div class="modal-content full-width">
+            <span class="close">&times;</span>
+            <h2 id="expandedChartTitle"><i class="fas fa-chart-bar"></i> Expanded Chart</h2>
+            <div class="expanded-chart-container">
+                <canvas id="expandedChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="title">
+                <h1><i class="fas fa-chart-line"></i> Healthcare Cost Prediction</h1>
+                <p>Insurance Claims Analysis Dashboard</p>
+            </div>
+            <div class="user-actions">
+                <button class="btn secondary-btn" id="themeSwitcher">
+                    <i class="fas fa-moon"></i> <span>Dark Mode</span>
+                </button>
+                <button class="btn secondary-btn" id="helpBtn">
+                    <i class="fas fa-question-circle"></i> <span>Help</span>
+                </button>
+                <button class="btn primary-btn" id="exportBtn">
+                    <i class="fas fa-file-export"></i> <span>Export Data</span>
+                </button>
+                <button class="btn primary-btn" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i> <span>Refresh</span>
+                </button>
+            </div>
+        </header>
+        
+        <!-- Dashboard Info Bar -->
+        <div class="info-bar">
+            <div class="date-info">
+                <i class="far fa-calendar-alt"></i> Data as of: <strong>March 16, 2025</strong>
+            </div>
+            <div class="data-source">
+                <i class="fas fa-database"></i> Source: <strong>Synthea Generated Dataset</strong>
+            </div>
+            <div class="prediction-accuracy">
+                <i class="fas fa-bullseye"></i> Model Accuracy: <strong>86.4%</strong>
+            </div>
+        </div>
+        
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Navigation Sidebar -->
+            <div class="navigation-bar">
+                <div class="nav-section">
+                    <h3><i class="fas fa-compass"></i> Main Navigation</h3>
+                    <a href="#" class="nav-link active" data-view="overview">
+                        <i class="fas fa-home"></i> Overview
+                    </a>
+                    <a href="#" class="nav-link" data-view="claims-analysis">
+                        <i class="fas fa-file-medical"></i> Claims Analysis
+                    </a>
+                    <a href="#" class="nav-link" data-view="cost-drivers">
+                        <i class="fas fa-money-bill-wave"></i> Cost Drivers
+                    </a>
+                    <a href="#" class="nav-link" data-view="payer-analysis">
+                        <i class="fas fa-building"></i> Payer & Insurance
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <h3><i class="fas fa-microscope"></i> Advanced Analysis</h3>
+                    <a href="#" class="nav-link" data-view="high-cost-claims">
+                        <i class="fas fa-exclamation-circle"></i> High-Cost Claims
+                    </a>
+                    <a href="#" class="nav-link" data-view="risk-factors">
+                        <i class="fas fa-virus"></i> Risk Factors
+                    </a>
+                    <a href="#" class="nav-link" data-view="predictive-model">
+                        <i class="fas fa-robot"></i> Predictive Model
+                    </a>
+                </div>
+
+                <div class="nav-footer">
+                    <div class="system-status">
+                        <span class="status-dot online"></span> System Online
+                    </div>
+                    <div class="last-updated">
+                        Last updated: <span id="lastUpdated">2 hours ago</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="main-content">
+                <!-- Overview Section -->
+                <div class="content-view active" id="overview">
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-tachometer-alt"></i> Key Performance Indicators</h2>
+                            <div class="section-actions">
+                                <button class="btn icon-btn" id="kpiMoreBtn" title="More Details">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="kpi-grid">
+                            <div class="kpi-card">
+                                <div class="kpi-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <div class="kpi-title">Total Patients</div>
+                                    <div class="kpi-value">100</div>
+                                    <div class="kpi-change positive">
+                                        <i class="fas fa-arrow-up"></i> 12% from previous period
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="kpi-card">
+                                <div class="kpi-icon">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <div class="kpi-title">Avg. Claim Cost</div>
+                                    <div class="kpi-value">$1,842</div>
+                                    <div class="kpi-change negative">
+                                        <i class="fas fa-arrow-down"></i> 3% from previous period
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="kpi-card">
+                                <div class="kpi-icon">
+                                    <i class="fas fa-hospital"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <div class="kpi-title">Total Healthcare Expenses</div>
+                                    <div class="kpi-value">$28.5M</div>
+                                    <div class="kpi-change positive">
+                                        <i class="fas fa-arrow-up"></i> 7% from previous period
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="kpi-card">
+                                <div class="kpi-icon">
+                                    <i class="fas fa-bullseye"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <div class="kpi-title">Prediction Accuracy</div>
+                                    <div class="kpi-value">86.4%</div>
+                                    <div class="kpi-change positive">
+                                        <i class="fas fa-arrow-up"></i> 2.1% from previous model
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-chart-pie"></i> Claims Data Overview</h2>
+                            <div class="section-actions">
+                                <div class="section-badge">
+                                    <i class="fas fa-calendar-alt"></i> Last 12 months
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="charts-container">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-dollar-sign"></i> Healthcare Expenses by Age Group & Race
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="expensesChart"></canvas>
+                                </div>
+                                <div class="chart-footer">
+                                    <div class="chart-insight">
+                                        <i class="fas fa-lightbulb"></i> <strong>Key Insight:</strong> The 65+ age group accounts for 42% of total healthcare expenses.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-procedures"></i> Top 5 Most Expensive Procedures
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="proceduresChart"></canvas>
+                                </div>
+                                <div class="chart-footer">
+                                    <div class="chart-insight">
+                                        <i class="fas fa-lightbulb"></i> <strong>Key Insight:</strong> Combined chemotherapy and radiation therapy is the highest-cost procedure.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-shield-alt"></i> Insurance Coverage Analysis</h2>
+                        </div>
+                        
+                        <div class="charts-container">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-building"></i> Coverage by Payer Type
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="payerCoverageChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-balance-scale"></i> Amount Covered vs. Uncovered
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="coverageRatioChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- User Interactions Section -->
+                    <div class="content-section user-interactions">
+                        <div class="section-header">
+                            <h2><i class="fas fa-hand-pointer"></i> Dashboard Tools</h2>
+                        </div>
+                        
+                        <div class="interaction-options">
+                            <div class="interaction-option">
+                                <i class="fas fa-th-large"></i> Customizable Widgets
+                            </div>
+                            <div class="interaction-option">
+                                <i class="fas fa-info-circle"></i> Hover Tooltips
+                            </div>
+                            <div class="interaction-option">
+                                <i class="fas fa-search-plus"></i> Drill-Down Options
+                            </div>
+                            <div class="interaction-option">
+                                <i class="fas fa-sliders-h"></i> Adjustable Sliders
+                            </div>
+                            <div class="interaction-option">
+                                <i class="fas fa-file-export"></i> Export Options
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Claims Analysis View -->
+                <div class="content-view" id="claims-analysis">
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-file-medical"></i> Claims Analysis Dashboard</h2>
+                        </div>
+                        
+                        <div class="charts-container">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-procedures"></i> Claims by Procedure Type
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="claimsByProcedureChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-heartbeat"></i> Claims by Medical Condition
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="claimsByConditionChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-table"></i> Recent Claims Data</h2>
+                            <div class="section-actions">
+                                <div class="search-container">
+                                    <input type="text" placeholder="Search claims..." class="search-input" id="claimsSearch">
+                                    <i class="fas fa-search search-icon"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <table class="data-table" id="claimsTable">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-calendar-alt"></i> Date</th>
+                                    <th><i class="fas fa-procedures"></i> Procedure</th>
+                                    <th><i class="fas fa-user"></i> Patient ID</th>
+                                    <th><i class="fas fa-dollar-sign"></i> Base Cost</th>
+                                    <th><i class="fas fa-dollar-sign"></i> Total Cost</th>
+                                    <th><i class="fas fa-shield-alt"></i> Insurance Coverage</th>
+                                    <th><i class="fas fa-cog"></i> Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="claimsTableBody">
+                                <tr>
+                                    <td>2011-04-30</td>
+                                    <td>Insertion of subcutaneous contraceptive</td>
+                                    <td>8d4c43...</td>
+                                    <td>$14,896.56</td>
+                                    <td>$15,890.32</td>
+                                    <td><span class="badge success">85%</span></td>
+                                    <td>
+                                        <button class="btn icon-btn table-action" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2010-07-27</td>
+                                    <td>Medication Reconciliation</td>
+                                    <td>10339b...</td>
+                                    <td>$726.51</td>
+                                    <td>$842.30</td>
+                                    <td><span class="badge success">92%</span></td>
+                                    <td>
+                                        <button class="btn icon-btn table-action" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2011-02-07</td>
+                                    <td>Throat culture (procedure)</td>
+                                    <td>f5dcd4...</td>
+                                    <td>$2,070.44</td>
+                                    <td>$2,583.05</td>
+                                    <td><span class="badge warning">73%</span></td>
+                                    <td>
+                                        <button class="btn icon-btn table-action" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2010-11-20</td>
+                                    <td>Medication Reconciliation</td>
+                                    <td>f5dcd4...</td>
+                                    <td>$788.50</td>
+                                    <td>$942.18</td>
+                                    <td><span class="badge success">87%</span></td>
+                                    <td>
+                                        <button class="btn icon-btn table-action" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="table-footer">
+                            <div class="pagination">
+                                <button class="btn pagination-btn" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <button class="btn pagination-btn active">1</button>
+                                <button class="btn pagination-btn">2</button>
+                                <button class="btn pagination-btn">3</button>
+                                <button class="btn pagination-btn">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                            <div class="page-info">
+                                Showing 1-4 of 24 claims
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cost Drivers View -->
+                <div class="content-view" id="cost-drivers">
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-money-bill-wave"></i> Cost Drivers Analysis</h2>
+                        </div>
+                        
+                        <div class="cost-driver-cards">
+                            <div class="driver-card">
+                                <div class="driver-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <h4>Age Group Impact</h4>
+                                <div class="driver-value">65+ Group</div>
+                                <div class="driver-description">The 65+ age group accounts for 42% of total healthcare expenses.</div>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: 42%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="driver-card">
+                                <div class="driver-icon">
+                                    <i class="fas fa-heartbeat"></i>
+                                </div>
+                                <h4>Chronic Condition Factor</h4>
+                                <div class="driver-value">2.4x Cost Multiplier</div>
+                                <div class="driver-description">Patients with chronic conditions incur 2.4x more costs than average.</div>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: 70%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="driver-card">
+                                <div class="driver-icon">
+                                    <i class="fas fa-procedures"></i>
+                                </div>
+                                <h4>Top Cost Driver</h4>
+                                <div class="driver-value">Combined Therapy</div>
+                                <div class="driver-description">Combined chemotherapy and radiation therapy is the highest-cost procedure.</div>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: 85%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="driver-card">
+                                <div class="driver-icon">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <h4>Geographical Factor</h4>
+                                <div class="driver-value">San Diego</div>
+                                <div class="driver-description">San Diego has 18% higher healthcare costs than average for the dataset.</div>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: 18%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-chart-line"></i> Cost Driver Trend Analysis</h2>
+                        </div>
+                        
+                        <div class="charts-container">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-users"></i> Healthcare Costs by Age Group Over Time
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="costTrendChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-heartbeat"></i> Impact of Chronic Conditions on Cost
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="chronicConditionImpactChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payer & Insurance Analysis View -->
+                <div class="content-view" id="payer-analysis">
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-building"></i> Payer & Insurance Analysis</h2>
+                        </div>
+                        
+                        <div class="charts-container">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-shield-alt"></i> Coverage by Payer
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="payerComparisonChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <div class="chart-title">
+                                        <i class="fas fa-balance-scale"></i> Coverage vs. Premium Cost
+                                    </div>
+                                    <div class="chart-actions">
+                                        <button class="btn icon-btn chart-action" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="btn icon-btn chart-action" title="Expand">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="coveragePremiumChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-clipboard-list"></i> Payer Performance Metrics</h2>
+                        </div>
+                        
+                        <table class="data-table" id="payerTable">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-building"></i> Payer Name</th>
+                                    <th><i class="fas fa-shield-alt"></i> Coverage %</th>
+                                    <th><i class="fas fa-clock"></i> Avg Response Time</th>
+                                    <th><i class="fas fa-times-circle"></i> Denied Claims %</th>
+                                    <th><i class="fas fa-smile"></i> Customer Satisfaction</th>
+                                    <th><i class="fas fa-chart-line"></i> Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Medicare</td>
+                                    <td><span class="badge success">84.2%</span></td>
+                                    <td>12 days</td>
+                                    <td>7.5%</td>
+                                    <td>79%</td>
+                                    <td>
+                                        <span class="sparkline">
+                                            <span class="spark-point" style="height:40%"></span>
+                                            <span class="spark-point" style="height:50%"></span>
+                                            <span class="spark-point" style="height:60%"></span>
+                                            <span class="spark-point" style="height:65%"></span>
+                                            <span class="spark-point" style="height:75%"></span>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Medicaid</td>
+                                    <td><span class="badge warning">66.7%</span></td>
+                                    <td>18 days</td>
+                                    <td>12.3%</td>
+                                    <td>81%</td>
+                                    <td>
+                                        <span class="sparkline">
+                                            <span class="spark-point" style="height:60%"></span>
+                                            <span class="spark-point" style="height:55%"></span>
+                                            <span class="spark-point" style="height:65%"></span>
+                                            <span class="spark-point" style="height:70%"></span>
+                                            <span class="spark-point" style="height:65%"></span>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Humana</td>
+                                    <td><span class="badge danger">45.9%</span></td>
+                                    <td>9 days</td>
+                                    <td>9.8%</td>
+                                    <td>91%</td>
+                                    <td>
+                                        <span class="sparkline">
+                                            <span class="spark-point" style="height:30%"></span>
+                                            <span class="spark-point" style="height:35%"></span>
+                                            <span class="spark-point" style="height:40%"></span>
+                                            <span class="spark-point" style="height:45%"></span>
+                                            <span class="spark-point" style="height:50%"></span>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Dual Eligible</td>
+                                    <td><span class="badge warning">54.3%</span></td>
+                                    <td>15 days</td>
+                                    <td>5.2%</td>
+                                    <td>36%</td>
+                                    <td>
+                                        <span class="sparkline">
+                                            <span class="spark-point" style="height:70%"></span>
+                                            <span class="spark-point" style="height:60%"></span>
+                                            <span class="spark-point" style="height:50%"></span>
+                                            <span class="spark-point" style="height:45%"></span>
+                                            <span class="spark-point" style="height:40%"></span>
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Other views (hidden by default) -->
+                <div class="content-view" id="high-cost-claims">
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-exclamation-circle"></i> High-Cost Claims Analysis</h2>
+                        </div>
+                        <div class="coming-soon">
+                            <i class="fas fa-tools"></i>
+                            <h3>Coming Soon</h3>
+                            <p>This feature is under active development and will be available in the next update.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="content-view" id="risk-factors">
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-virus"></i> Risk Factors Analysis</h2>
+                        </div>
+                        <div class="coming-soon">
+                            <i class="fas fa-tools"></i>
+                            <h3>Coming Soon</h3>
+                            <p>This feature is under active development and will be available in the next update.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="content-view" id="predictive-model">
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-robot"></i> Predictive Model Dashboard</h2>
+                        </div>
+                        <div class="coming-soon">
+                            <i class="fas fa-tools"></i>
+                            <h3>Coming Soon</h3>
+                            <p>This feature is under active development and will be available in the next update.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Dimensions Sidebar -->
+            <div class="data-dimensions">
+                <div class="filter-header">
+                    <h3><i class="fas fa-filter"></i> Data Filters</h3>
+                    <button class="btn icon-btn" id="collapseFilters" title="Collapse Filters">
+                        <i class="fas fa-compress-alt"></i>
+                    </button>
+                </div>
+                
+                <div class="filter-body">
+                    <div class="filter-section">
+                        <h4><i class="fas fa-users"></i> Demographics</h4>
+                        
+                        <div class="filter-item">
+                            <label for="ageGroup">Age Group</label>
+                            <select id="ageGroup" class="styled-select">
+                                <option value="all">All Age Groups</option>
+                                <option value="0-18">0-18</option>
+                                <option value="19-35">19-35</option>
+                                <option value="36-50">36-50</option>
+                                <option value="51-65">51-65</option>
+                                <option value="65+">65+</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="gender">Gender</label>
+                            <select id="gender" class="styled-select">
+                                <option value="all">All Genders</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-item">
+                            <label for="race">Race</label>
+                            <select id="race" class="styled-select">
+                                <option value="all">All Races</option>
+                                <option value="white">White</option>
+                                <option value="black">Black</option>
+                                <option value="asian">Asian</option>
+                                <option value="hispanic">Hispanic</option>
+                                <option value="native">Native</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <h4><i class="fas fa-heartbeat"></i> Health Condition</h4>
+                        
+                        <div class="filter-item">
+                            <label for="condition">Health Condition</label>
+                            <select id="condition" class="styled-select">
+                                <option value="all">All Conditions</option>
+                                <option value="chronic">Chronic Sinusitis</option>
+                                <option value="viral">Viral Sinusitis</option>
+                                <option value="pharyngitis">Acute Viral Pharyngitis</option>
+                                <option value="bronchitis">Acute Bronchitis</option>
+                                <option value="hypertension">Hypertension</option>
+                                <option value="diabetes">Diabetes</option>
+                                <option value="asthma">Asthma</option>
+                                <option value="heart">Heart Disease</option>
+                                <option value="cancer">Cancer</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <h4><i class="fas fa-map-marker-alt"></i> Location</h4>
+                        
+                        <div class="filter-item">
+                            <label for="location">City</label>
+                            <select id="location" class="styled-select">
+                                <option value="all">All Cities</option>
+                                <option value="hayward">Hayward</option>
+                                <option value="sandiego">San Diego</option>
+                                <option value="menifee">Menifee</option>
+                                <option value="indio">Indio</option>
+                                <option value="burlingame">Burlingame</option>
+                                <option value="losangeles">Los Angeles</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <h4><i class="fas fa-calendar-alt"></i> Time Period</h4>
+                        
+                        <div class="filter-item">
+                            <label for="dateRange">Date Range</label>
+                            <select id="dateRange" class="styled-select">
+                                <option value="all">All Time</option>
+                                <option value="last30">Last 30 Days</option>
+                                <option value="last90">Last 90 Days</option>
+                                <option value="last180">Last 180 Days</option>
+                                <option value="last365">Last 365 Days</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-item" id="customDateRange" style="display: none;">
+                            <label for="startDate">Start Date</label>
+                            <input type="date" id="startDate" class="styled-input">
+                            
+                            <label for="endDate" class="mt-10">End Date</label>
+                            <input type="date" id="endDate" class="styled-input">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button class="btn primary-btn" id="applyFiltersBtn">
+                            <i class="fas fa-check"></i> Apply Filters
+                        </button>
+                        <button class="btn secondary-btn" id="resetFiltersBtn">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="filter-footer">
+                    <div class="selected-filters">
+                        <h4>Active Filters</h4>
+                        <div class="filter-tags">
+                            <!-- Filter tags will be added here dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading data...</div>
+    </div>
+    
+    <!-- Export Progress Modal -->
+    <div id="exportProgressModal" class="modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-file-export"></i> Exporting Data</h2>
+            <div class="export-progress">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="exportProgressBar"></div>
+                </div>
+                <div class="progress-text" id="exportProgressText">Preparing data...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add JavaScript files -->
+    <script src="data.js"></script>
+    <script src="scripts.js"></script>
+</body>
+</html>
